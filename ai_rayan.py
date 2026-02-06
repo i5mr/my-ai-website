@@ -1,10 +1,9 @@
 import streamlit as st
 import google.generativeai as genai
 
-# 1. إعدادات المظهر (UI) لدعم العربي واليمين لليسار بشكل احترافي
+# 1. إعدادات الصفحة والجماليات (دعم كامل للعربي)
 st.set_page_config(page_title="مساعد ريان المطور", page_icon="🤖", layout="centered")
 
-# تنسيق الواجهة لتكون مريحة للعين وتدعم العربية
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo&display=swap');
@@ -13,49 +12,52 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 2. ربط المفتاح السري من إعدادات Streamlit (حل مشكلة KeyError)
+# 2. التحقق من المفتاح السري (Secrets)
 try:
     api_key = st.secrets["GOOGLE_API_KEY"]
     genai.configure(api_key=api_key)
 except KeyError:
-    st.error("⚠️ خطأ: تأكد من إضافة GOOGLE_API_KEY في إعدادات Secrets في موقع Streamlit.")
+    st.error("⚠️ خطأ: المفتاح السري غير موجود في إعدادات Secrets!")
     st.stop()
 
-# 3. إعداد الموديل مع الاسم الصحيح (حل مشكلة NotFound)
-# أضفنا "models/" قبل اسم الموديل لضمان استقراره أونلاين
-model = genai.GenerativeModel(
-    model_name="models/gemini-1.5-pro", 
-    system_instruction="أنت مساعد ذكي جداً اسمك 'مساعد ريان'، خبير في البرمجة، وتتحدث بالعربية بأسلوب ممتع وواضح."
-)
+# 3. اختيار الموديل المستقر (هذا الجزء يحل مشكلة NotFound في الصورة الأخيرة)
+# سنستخدم 'gemini-1.5-flash' أو 'gemini-pro' لضمان التوافق
+try:
+    model = genai.GenerativeModel(
+        model_name="gemini-1.5-flash", 
+        system_instruction="أنت مساعد ذكي جداً اسمك 'مساعد ريان'، خبير في البرمجة وتساعد الناس بذكاء."
+    )
+except Exception:
+    # حل احتياطي في حال فشل الموديل المذكور
+    model = genai.GenerativeModel(model_name="gemini-pro")
 
-# 4. إدارة ذاكرة المحادثة (History)
+# 4. الذاكرة
 if "chat" not in st.session_state:
     st.session_state.chat = model.start_chat(history=[])
 
 st.title("🤖 مساعد ريان المطور")
-st.write("أهلاً بك في نسختك الخاصة! أنا جاهز للإجابة على أي سؤال.")
+st.caption("النسخة المدمجة والمستقرة")
 
-# عرض الرسائل السابقة من الذاكرة
+# عرض المحادثة
 for message in st.session_state.chat.history:
     role = "user" if message.role == "user" else "assistant"
     with st.chat_message(role):
         st.markdown(message.parts[0].text)
 
-# 5. صندوق الشات ومعالجة الردود
-if prompt := st.chat_input("اسألني أي شيء..."):
-    # عرض رسالة المستخدم فوراً
+# 5. معالجة الرسائل
+if prompt := st.chat_input("تفضل، اسألني أي شيء..."):
     with st.chat_message("user"):
         st.markdown(prompt)
     
-    # طلب الرد من الذكاء الاصطناعي مع خاصية التحديث المباشر
     with st.chat_message("assistant"):
         response_placeholder = st.empty()
         full_response = ""
         try:
+            # طلب الرد
             response = st.session_state.chat.send_message(prompt, stream=True)
             for chunk in response:
                 full_response += chunk.text
                 response_placeholder.markdown(full_response + "▌")
             response_placeholder.markdown(full_response)
         except Exception as e:
-            st.error(f"حدث خطأ أثناء الاتصال: {str(e)}")
+            st.error(f"حدث خطأ في الاتصال بالموديل: {str(e)}")
