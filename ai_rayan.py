@@ -18,12 +18,11 @@ def generate_user(length):
 class MultiPlatformSelect(discord.ui.Select):
     def __init__(self):
         options = [
-            discord.SelectOption(label="TikTok - ثلاثي", value="tiktok_3", emoji="📱"),
             discord.SelectOption(label="TikTok - رباعي", value="tiktok_4", emoji="📱"),
-            discord.SelectOption(label="Instagram - رباعي", value="insta_4", emoji="📸"),
+            discord.SelectOption(label="TikTok - خماسي", value="tiktok_5", emoji="📱"),
             discord.SelectOption(label="Instagram - خماسي", value="insta_5", emoji="📸"),
         ]
-        super().__init__(placeholder="اختر المنصة وطول اليوزر...", options=options)
+        super().__init__(placeholder="اختر المنصة وابدأ الصيد...", options=options)
 
     async def callback(self, interaction: discord.Interaction):
         global scanning
@@ -31,52 +30,43 @@ class MultiPlatformSelect(discord.ui.Select):
         platform = selection[0]
         length = int(selection[1])
         
-        await interaction.response.send_message(f"🚀 بدأ الرادار: **{platform.upper()}** | الطول: **{length}**\nاكتب `!stop` للإيقاف.", ephemeral=True)
+        await interaction.response.send_message(f"🚀 بدأ الرادار: **{platform.upper()}** | الطول: **{length}**", ephemeral=True)
         
         scanning = True
+        attempt_count = 0 # عداد المحاولات
+        
         while scanning:
             user = generate_user(length)
+            url = f"https://www.tiktok.com/@{user}" if platform == "tiktok" else f"https://www.instagram.com/{user}/"
             
-            if platform == "tiktok":
-                url = f"https://www.tiktok.com/@{user}"
-                headers = {'User-Agent': 'Mozilla/5.0'}
-            else: # Instagram
-                url = f"https://www.instagram.com/{user}/"
-                headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-
             try:
-                res = requests.get(url, headers=headers, timeout=5)
-                # في تيك توك وانستا غالباً 404 يعني متاح
+                res = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=5)
+                attempt_count += 1
+                
+                # كل 10 محاولات، يرسل رسالة "تطمين" في الشات
+                if attempt_count % 10 == 0:
+                    await interaction.channel.send(f"⏳ رادار {platform}: فحصت {attempt_count} يوزرات مأخوذة حتى الآن... البحث مستمر 🔍", delete_after=5)
+
                 if res.status_code == 404:
-                    await interaction.channel.send(f"💎 **متاح في {platform}:** `@{user}`")
+                    await interaction.channel.send(f" @everyone 💎 **صيد جديد!**\nالمنصة: {platform}\nاليوزر: `@{user}`")
             except:
                 pass
             
-            await asyncio.sleep(2.5) # تأخير للحماية من الباند
+            await asyncio.sleep(2)
 
 class SetupView(discord.ui.View):
     def __init__(self):
         super().__init__()
         self.add_item(MultiPlatformSelect())
 
-@bot.event
-async def on_ready():
-    print(f'✅ البوت المطور جاهز باسم: {bot.user.name}')
-
 @bot.command()
 async def setup(ctx):
-    embed = discord.Embed(
-        title="✨ لوحة تحكم الرادار",
-        description="اختر من القائمة أدناه المنصة والطول الذي تريد صيده:",
-        color=0xFF00D2
-    )
-    embed.set_footer(text="صنع بواسطة ريان")
-    await ctx.send(embed=embed, view=SetupView())
+    await ctx.send("✨ **لوحة تحكم ريان**", view=SetupView())
 
 @bot.command()
 async def stop(ctx):
     global scanning
     scanning = False
-    await ctx.send("🛑 تم إيقاف جميع عمليات الفحص.")
+    await ctx.send("🛑 توقف الصيد.")
 
 bot.run(TOKEN)
