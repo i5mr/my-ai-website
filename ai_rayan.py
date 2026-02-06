@@ -6,7 +6,7 @@ import string
 import asyncio
 import os
 
-# تأكد أنك سميت المتغير في Koyeb بهذا الاسم: SHOP_TOKEN
+# التوكن من إعدادات Koyeb
 TOKEN = os.getenv('SHOP_TOKEN')
 
 intents = discord.Intents.all()
@@ -17,26 +17,33 @@ def generate_user(length):
 
 @bot.event
 async def on_ready():
-    print(f'🛒 بوت المتجر (الرادار) شغال باسم: {bot.user.name}')
+    print(f'✅ {bot.user.name} جاهز لاستلام الأوامر!')
 
+# أمر المتجر
+@bot.command()
+async def shop(ctx):
+    embed = discord.Embed(title="🛒 متجر ريان لليوزرات", description="اطلب يوزرك المفضل الآن!", color=0x00ff00)
+    embed.add_field(name="الأوامر المتاحة:", value="`!find [الطول] [العدد]`\nمثال: `!find 4 5` لفحص 5 يوزرات رباعية", inline=False)
+    await ctx.send(embed=embed)
+
+# أمر فحص اليوزرات (الرادار)
 @bot.command()
 async def find(ctx, length: int, amount: int = 5):
     if length < 3:
-        return await ctx.send("⚠️ اليوزرات في تيك توك لازم تكون 3 أحرف أو أكثر!")
+        return await ctx.send("⚠️ أقل طول ليوزر تيك توك هو 3!")
     
-    await ctx.send(f"🚀 **رادار المتجر:** جاري فحص {amount} يوزرات بطول {length}...")
+    msg = await ctx.send(f"🚀 جاري فحص {amount} يوزرات... انتظر قليلاً")
     
     for _ in range(amount):
         user = generate_user(length)
         url = f"https://www.tiktok.com/@{user}"
         try:
-            # إضافة headers لمحاكاة متصفح حقيقي وتجنب الحظر
             res = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=5)
-            status = "✅ متاح أو محذوف" if res.status_code == 404 else "❌ مأخوذ"
-            await ctx.send(f"💎 اليوزر: `@{user}` -> **{status}**")
+            status = "✅ متاح" if res.status_code == 404 else "❌ مأخوذ"
+            await ctx.send(f"💎 `@{user}` -> **{status}**")
         except:
-            await ctx.send(f"⚠️ تعذر فحص اليوزر `@{user}` (مشكلة في الشبكة)")
-        
-        await asyncio.sleep(2) # تأخير عشان ما يحظرك تيك توك
+            pass
+        await asyncio.sleep(1.5)
+    await ctx.send("✨ تم الانتهاء من الفحص!")
 
 bot.run(TOKEN)
