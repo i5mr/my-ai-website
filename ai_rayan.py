@@ -6,47 +6,73 @@ import string
 import asyncio
 import os
 
-# سحب التوكن من Koyeb
 TOKEN = os.getenv('SHOP_TOKEN')
-
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix='!', intents=intents)
+
+# متغير للتحكم في حالة الفحص (إيقاف أو تشغيل)
+scanning = False
 
 def generate_user(length):
     return ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(length))
 
 @bot.event
 async def on_ready():
-    print(f'✅ البوت شغال الآن باسم: {bot.user.name}')
+    print(f'✅ {bot.user.name} جاهز للعمل بنظام الـ Setup!')
 
-# أمر !shop - يعرض قائمة المتجر
 @bot.command()
-async def shop(ctx):
-    embed = discord.Embed(title="🏪 متجر ريان لليوزرات", description="أهلاً بك في أفضل متجر لفحص اليوزرات!", color=0x2f3136)
-    embed.add_field(name="🚀 رادار تيك توك", value="للبدء اكتب: `!find [الطول] [العدد]`\nمثال: `!find 4 5` لفحص 5 يوزرات رباعية.", inline=False)
-    embed.set_footer(text="Rayan Tool - Your assistant")
-    await ctx.send(embed=embed)
+async def setup(ctx):
+    global scanning
+    if scanning:
+        return await ctx.send("⚠️ البوت جالس يفحص حالياً، اكتب `!stop` أولاً.")
 
-# أمر !find - فحص يوزرات تيك توك
+    def check(m):
+        return m.author == ctx.author and m.channel == ctx.channel
+
+    try:
+        # السؤال الأول: طول اليوزر
+        await ctx.send("🔢 **كم حرف تبي طول اليوزر؟** (مثلاً: 3 أو 4)")
+        msg1 = await bot.wait_for('message', check=check, timeout=30.0)
+        length = int(msg1.content)
+
+        # السؤال الثاني: العدد
+        await ctx.send("🔁 **كم يوزر تبي يفحص؟** (اكتب `0` لفحص لا نهائي)")
+        msg2 = await bot.wait_for('message', check=check, timeout=30.0)
+        amount = int(msg2.content)
+
+        scanning = True
+        await ctx.send(f"🚀 تم بدء الرادار! (الطول: {length} | العدد: {'لا نهائي' if amount == 0 else amount})\nلإيقاف الفحص اكتب `!stop`")
+
+        count = 0
+        while scanning:
+            if amount != 0 and count >= amount:
+                break
+            
+            user = generate_user(length)
+            url = f"https://www.tiktok.com/@{user}"
+            try:
+                res = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=5)
+                if res.status_code == 404:
+                    await ctx.send(f"✅ متاح: `@{user}`")
+                # ملاحظة: شلنا رسالة "مأخوذ" عشان ما يزعجك الشات في الفحص اللانهائي
+            except:
+                pass
+            
+            count += 1
+            await asyncio.sleep(2) # تأخير لضمان عدم الحظر
+
+        scanning = False
+        await ctx.send("🏁 انتهى الفحص.")
+
+    except ValueError:
+        await ctx.send("❌ خطأ: لازم تكتب أرقام فقط!")
+    except asyncio.TimeoutError:
+        await ctx.send("⏰ تأخرت في الرد، تم إلغاء الـ Setup.")
+
 @bot.command()
-async def find(ctx, length: int, amount: int = 5):
-    if length < 3:
-        return await ctx.send("⚠️ يوزرات تيك توك لازم تكون 3 أحرف أو أكثر!")
-    
-    await ctx.send(f"🔍 جاري فحص {amount} يوزرات... انتظر ثواني.")
-    
-    for _ in range(amount):
-        user = generate_user(length)
-        url = f"https://www.tiktok.com/@{user}"
-        try:
-            # استخدام headers لتجنب الحظر
-            res = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=5)
-            status = "✅ متاح" if res.status_code == 404 else "❌ مأخوذ"
-            await ctx.send(f"💎 `@{user}` -> **{status}**")
-        except:
-            pass
-        await asyncio.sleep(2) # تأخير بسيط لتجنب حظر الـ IP
-    
-    await ctx.send("✅ انتهت عملية الفحص.")
+async def stop(ctx):
+    global scanning
+    scanning = False
+    await ctx.send("🛑 تم إيقاف الرادار بنجاح.")
 
 bot.run(TOKEN)
