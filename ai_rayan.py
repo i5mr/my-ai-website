@@ -1,6 +1,5 @@
 import streamlit as st
 import google.generativeai as genai
-import os
 
 # 1. إعدادات الواجهة (دعم كامل للعربي)
 st.set_page_config(page_title="مساعد ريان المطور", page_icon="🤖")
@@ -21,11 +20,11 @@ if "GOOGLE_API_KEY" not in st.secrets:
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
 # 3. اختيار الموديل (تغيير الصيغة لحل مشكلة 404 في الصورة 16)
-# سنستخدم 'gemini-1.5-flash-latest' لأنها النسخة الأكثر استقراراً للويب
+# جربنا كل الأسماء، الحين بنستخدم الصيغة الأكثر قبولاً للسيرفرات
 @st.cache_resource
 def load_model():
     return genai.GenerativeModel(
-        model_name="models/gemini-1.5-flash-latest",
+        model_name="gemini-1.5-flash",
         system_instruction="أنت مساعد ذكي اسمك 'مساعد ريان' تخدم المستخدم بكل مهارة وباللغة العربية."
     )
 
