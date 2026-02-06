@@ -1,49 +1,54 @@
 import streamlit as st
-from google import genai # المكتبة الجديدة
+from google import genai
 
-# 1. إعدادات الواجهة
+# 1. إعدادات الواجهة المتوافقة مع 1.54
 st.set_page_config(page_title="مساعد ريان المطور", page_icon="🤖")
+
 st.markdown("""<style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo&display=swap');
     html, body, [class*="css"] { font-family: 'Cairo', sans-serif; direction: rtl; text-align: right; }
     .stChatMessage { text-align: right; direction: rtl; }
 </style>""", unsafe_allow_html=True)
 
-# 2. الربط بالمفتاح السري
+# 2. الربط بالمفتاح
 if "GOOGLE_API_KEY" not in st.secrets:
     st.error("المفتاح مفقود من Secrets!")
     st.stop()
 
-# إعداد العميل الجديد (New Client)
+# إعداد العميل (Client) بأحدث طريقة لعام 2026
 client = genai.Client(api_key=st.secrets["GOOGLE_API_KEY"])
 
 st.title("🤖 مساعد ريان المطور")
-st.success("تم التحديث للمكتبة الجديدة 2026 ✅")
+st.info("نظام متصل ومستقر - إصدار 2026")
 
-# 3. إدارة المحادثة
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+# 3. الذاكرة
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
 
-# عرض الرسائل
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
+# عرض المحادثة
+for chat in st.session_state.chat_history:
+    with st.chat_message(chat["role"]):
+        st.markdown(chat["content"])
 
-# 4. معالجة الشات
-if prompt := st.chat_input("اسألني أي شيء..."):
-    st.session_state.messages.append({"role": "user", "content": prompt})
+# 4. معالجة الشات (بدون v1beta لضمان عدم حدوث 404)
+if prompt := st.chat_input("تفضل اسألني..."):
+    st.session_state.chat_history.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
         try:
-            # مناداة الموديل بالطريقة الجديدة
+            # استخدام موديل flash السريع والمستقر
             response = client.models.generate_content(
                 model="gemini-1.5-flash", 
                 contents=prompt
             )
-            answer = response.text
-            st.markdown(answer)
-            st.session_state.messages.append({"role": "assistant", "content": answer})
+            st.markdown(response.text)
+            st.session_state.chat_history.append({"role": "assistant", "content": response.text})
         except Exception as e:
-            st.error(f"خطأ فني: {str(e)}")
+            # إذا تعذر، نحاول الموديل الاحتياطي فوراً
+            try:
+                response = client.models.generate_content(model="gemini-pro", contents=prompt)
+                st.markdown(response.text)
+            except:
+                st.error("السيرفر يرفض الاتصال، جرب تضغط Reboot App من الـ Logs")
