@@ -1,54 +1,42 @@
-import streamlit as st
-from google import genai
+import discord
+from discord.ext import commands
+import requests
+import random
+import string
+import asyncio
+import os
 
-# 1. إعدادات الواجهة المتوافقة مع 1.54
-st.set_page_config(page_title="مساعد ريان المطور", page_icon="🤖")
+# إعداد البوت
+TOKEN = os.getenv('SHOP_TOKEN') # سمِّ المتغير في Koyeb بهذا الاسم
+intents = discord.Intents.all()
+bot = commands.Bot(command_prefix='!', intents=intents)
 
-st.markdown("""<style>
-    @import url('https://fonts.googleapis.com/css2?family=Cairo&display=swap');
-    html, body, [class*="css"] { font-family: 'Cairo', sans-serif; direction: rtl; text-align: right; }
-    .stChatMessage { text-align: right; direction: rtl; }
-</style>""", unsafe_allow_html=True)
+def generate_user(length):
+    chars = string.ascii_lowercase + string.digits + "._"
+    return ''.join(random.choice(chars) for _ in range(length))
 
-# 2. الربط بالمفتاح
-if "GOOGLE_API_KEY" not in st.secrets:
-    st.error("المفتاح مفقود من Secrets!")
-    st.stop()
-
-# إعداد العميل (Client) بأحدث طريقة لعام 2026
-client = genai.Client(api_key=st.secrets["GOOGLE_API_KEY"])
-
-st.title("🤖 مساعد ريان المطور")
-st.info("نظام متصل ومستقر - إصدار 2026")
-
-# 3. الذاكرة
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-
-# عرض المحادثة
-for chat in st.session_state.chat_history:
-    with st.chat_message(chat["role"]):
-        st.markdown(chat["content"])
-
-# 4. معالجة الشات (بدون v1beta لضمان عدم حدوث 404)
-if prompt := st.chat_input("تفضل اسألني..."):
-    st.session_state.chat_history.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
-
-    with st.chat_message("assistant"):
-        try:
-            # استخدام موديل flash السريع والمستقر
-            response = client.models.generate_content(
-                model="gemini-1.5-flash", 
-                contents=prompt
-            )
-            st.markdown(response.text)
-            st.session_state.chat_history.append({"role": "assistant", "content": response.text})
-        except Exception as e:
-            # إذا تعذر، نحاول الموديل الاحتياطي فوراً
+@bot.command()
+async def find(ctx, length: int, amount: int = 5):
+    await ctx.send(f"🚀 **رادار المتجر:** جاري فحص {amount} يوزرات بطول {length}...")
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    
+    for _ in range(amount):
+        user = generate_user(length)
+        platforms = {
+            "TikTok": f"https://www.tiktok.com/@{user}",
+            "Instagram": f"https://www.instagram.com/{user}/"
+        }
+        
+        embed = discord.Embed(title=f"💎 يوزر مقترح: @{user}", color=0x00ff00)
+        for name, url in platforms.items():
             try:
-                response = client.models.generate_content(model="gemini-pro", contents=prompt)
-                st.markdown(response.text)
+                res = requests.get(url, headers=headers, timeout=3)
+                status = "✅ متاح" if res.status_code == 404 else "❌ مأخوذ"
+                embed.add_field(name=name, value=status, inline=True)
             except:
-                st.error("السيرفر يرفض الاتصال، جرب تضغط Reboot App من الـ Logs")
+                embed.add_field(name=name, value="⚠️ خطأ", inline=True)
+        
+        await ctx.send(embed=embed)
+        await asyncio.sleep(2)
+
+bot.run(TOKEN)
