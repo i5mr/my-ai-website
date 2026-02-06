@@ -31,7 +31,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # 3. ربط الذكاء الاصطناعي
-genai.configurevst.secrets["GOOGLE_API_KEY"]
+genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 model = genai.GenerativeModel('gemini-1.5-pro')
 
 # 4. الذاكرة والرمز السري
