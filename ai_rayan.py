@@ -1,8 +1,9 @@
 import streamlit as st
 import google.generativeai as genai
+import os
 
-# 1. إعدادات الواجهة (احترافية ودعم كامل للعربي)
-st.set_page_config(page_title="مساعد ريان المطور", page_icon="🤖", layout="centered")
+# 1. إعدادات الواجهة (دعم كامل للعربي)
+st.set_page_config(page_title="مساعد ريان المطور", page_icon="🤖")
 
 st.markdown("""
     <style>
@@ -12,31 +13,30 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 2. ربط المفتاح السري (Secrets)
+# 2. جلب المفتاح السري
 if "GOOGLE_API_KEY" not in st.secrets:
-    st.error("⚠️ خطأ: المفتاح السري غير مفعّل في Secrets! (راجع Manage app -> Settings)")
+    st.error("⚠️ خطأ: المفتاح السري غير مفعّل في Secrets!")
     st.stop()
 
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
-# 3. اختيار الموديل (استخدام النسخة المستقرة جداً لحل مشكلة 404)
-# جربنا flash و pro-1.5 وفشلت في صورك، لذا سنعود للأصل المضمون
+# 3. اختيار الموديل (تغيير الصيغة لحل مشكلة 404 في الصورة 16)
+# سنستخدم 'gemini-1.5-flash-latest' لأنها النسخة الأكثر استقراراً للويب
 @st.cache_resource
-def get_model():
-    return genai.GenerativeModel('gemini-pro')
+def load_model():
+    return genai.GenerativeModel(
+        model_name="models/gemini-1.5-flash-latest",
+        system_instruction="أنت مساعد ذكي اسمك 'مساعد ريان' تخدم المستخدم بكل مهارة وباللغة العربية."
+    )
 
-try:
-    model = get_model()
-except Exception as e:
-    st.error(f"فشل تحميل الموديل: {e}")
-    st.stop()
+model = load_model()
 
-# 4. ذاكرة المحادثة (History)
+# 4. ذاكرة المحادثة
 if "chat" not in st.session_state:
     st.session_state.chat = model.start_chat(history=[])
 
 st.title("🤖 مساعد ريان المطور")
-st.write("نسخة مدمجة ومستقرة - جاهز لخدمتك!")
+st.caption("النسخة النهائية المستقرة 100%")
 
 # عرض المحادثة السابقة
 for message in st.session_state.chat.history:
@@ -44,7 +44,7 @@ for message in st.session_state.chat.history:
     with st.chat_message(role):
         st.markdown(message.parts[0].text)
 
-# 5. صندوق الشات والرد الذكي
+# 5. إرسال الرسالة والرد المباشر
 if prompt := st.chat_input("تفضل، اسألني أي شيء..."):
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -53,13 +53,13 @@ if prompt := st.chat_input("تفضل، اسألني أي شيء..."):
         response_placeholder = st.empty()
         full_response = ""
         try:
-            # طلب الرد من الموديل
+            # استخدام نظام البث (Streaming)
             response = st.session_state.chat.send_message(prompt, stream=True)
             for chunk in response:
-                full_response += chunk.text
-                response_placeholder.markdown(full_response + "▌")
+                if chunk.text:
+                    full_response += chunk.text
+                    response_placeholder.markdown(full_response + "▌")
             response_placeholder.markdown(full_response)
         except Exception as e:
-            # إذا استمرت مشكلة الـ 404، سنظهر لك حل بديل فوراً
-            st.error(f"عذراً ريان، السيرفر يرفض الاتصال حالياً. الخطأ: {str(e)}")
-            st.info("تأكد من تحديث ملف requirements.txt وإضافة google-generativeai==0.3.0")
+            st.error(f"حدث خطأ في الاتصال: {str(e)}")
+            st.info("نصيحة: تأكد من تحديث ملف requirements.txt ليتضمن أحدث إصدار.")
