@@ -8,10 +8,10 @@ import os
 from flask import Flask
 from threading import Thread
 
-# --- نظام البقاء حياً 24 ساعة ---
+# --- نظام البقاء حياً لمنع حالة Sleeping ---
 app = Flask('')
 @app.route('/')
-def home(): return "Instagram Radar is Active!"
+def home(): return "Radar is Monitoring Live! 🎯"
 def run(): app.run(host='0.0.0.0', port=8000)
 def keep_alive():
     t = Thread(target=run)
@@ -24,51 +24,43 @@ bot = commands.Bot(command_prefix='!', intents=discord.Intents.all())
 scanning = False
 
 def generate_insta_4():
-    # يوزرات انستا الرباعية غالباً تكون أحرف وأرقام ونقطة
-    chars = string.ascii_lowercase + string.digits + "."
+    chars = string.ascii_lowercase + string.digits
     return ''.join(random.choice(chars) for _ in range(4))
 
 @bot.command()
-async def hunt_insta(ctx):
+async def start_live(ctx):
     global scanning
-    if scanning: return await ctx.send("⚠️ الرادار يعمل بالفعل!")
+    if scanning: return await ctx.send("🛡️ الرادار شغال بالفعل!")
     
     scanning = True
-    await ctx.send("🚀 بدأ رادار انستقرام الرباعي 24/7... سيتم المنشن عند الصيد!")
+    # رسالة الحالة التي ستتحدث باستمرار
+    status_msg = await ctx.send("🚀 بدأ الفحص الحي ليوزرات انستا الرباعية...")
     
-    attempts = 0
     while scanning:
         user = generate_insta_4()
-        # هيدرز احترافية لتقليد المتصفح الحقيقي وتجنب الباند
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
-            'Accept-Language': 'en-US,en;q=0.9'
-        }
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
         
         try:
-            url = f"https://www.instagram.com/{user}/"
-            res = requests.get(url, headers=headers, timeout=5)
-            attempts += 1
+            # تحديث الرسالة لتبين اليوزر الحالي الذي يتم فحصه
+            await status_msg.edit(content=f"🔍 جاري فحص: `@{user}` ...")
             
-            # في انستقرام 404 تعني أن الحساب غير موجود (متاح للصيد)
+            res = requests.get(f"https://www.instagram.com/{user}/", headers=headers, timeout=5)
+            
             if res.status_code == 404:
-                await ctx.send(f"@everyone 🔥 **صيد انستا رباعي نادر!**\nاليوزر: `@{user}`\nرابط: {url}")
+                # إذا وجد يوزر متاح يرسل رسالة جديدة ومنشن
+                await ctx.send(f"💎 @everyone **صيدة انستا رباعية متاحة!**\nاليوزر: `@{user}`")
             
-            # رسالة طمأنة كل 50 محاولة
-            if attempts % 50 == 0:
-                print(f"Checked {attempts} Instagram users...")
-
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"Error during scan: {e}")
         
-        # وقت انتظار آمن (6 ثواني) لضمان عدم حظر IP السيرفر 
-        await asyncio.sleep(6)
+        # وقت انتظار 8 ثوانٍ لتجنب حظر 429 الظاهر في صورك السابقة
+        await asyncio.sleep(8)
 
 @bot.command()
 async def stop(ctx):
     global scanning
     scanning = False
-    await ctx.send("🛑 توقف الرادار.")
+    await ctx.send("🛑 توقف الرادار الحي.")
 
 if __name__ == "__main__":
     keep_alive()
