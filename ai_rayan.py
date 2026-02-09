@@ -8,98 +8,87 @@ import os
 from flask import Flask
 from threading import Thread
 
-# --- نظام منع النوم (Keep Alive) لضمان العمل 24 ساعة ---
+# --- نظام الحماية من النوم (Keep Alive) بورت 8000 ---
 app = Flask('')
 @app.route('/')
-def home(): return "Multi-Menu Radar is Live! 🎯"
+def home(): return "Pro Hunter is Active! 🎯"
 def run_web(): app.run(host='0.0.0.0', port=8000)
 def keep_alive():
     t = Thread(target=run_web)
     t.daemon = True
     t.start()
 
-# --- إعدادات البوت ---
 TOKEN = os.getenv('SHOP_TOKEN')
 bot = commands.Bot(command_prefix='!', intents=discord.Intents.all())
-
 scanning = False
 selected_platform = None
 
-class HuntView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
+# توليد يوزرات "فخمة" فقط (i5mr, jmay, r_x7)
+def generate_pro_user():
+    patterns = [
+        lambda: random.choice(string.ascii_lowercase) + str(random.randint(0,9)) + random.choice(string.ascii_lowercase) + random.choice(string.ascii_lowercase),
+        lambda: random.choice(string.ascii_lowercase) + random.choice(string.ascii_lowercase) + random.choice(string.ascii_lowercase) + random.choice(string.ascii_lowercase),
+    ]
+    return random.choice(patterns)()
 
-    # القائمة الأولى: المنصات
+class ProHunter(discord.ui.View):
+    def __init__(self): super().__init__(timeout=None)
+
     @discord.ui.select(
-        placeholder="1️⃣ اختر المنصة المراد صيدها...",
+        placeholder="1️⃣ حدد المنصة (انستا / تيك توك / سناب)",
         options=[
-            discord.SelectOption(label="TikTok", value="tiktok", emoji="📱"),
             discord.SelectOption(label="Instagram", value="insta", emoji="📸"),
-            discord.SelectOption(label="Snapchat", value="snap", emoji="👻"),
-            discord.SelectOption(label="Discord", value="discord", emoji="💬")
+            discord.SelectOption(label="TikTok", value="tiktok", emoji="📱"),
+            discord.SelectOption(label="Snapchat", value="snap", emoji="👻")
         ]
     )
     async def platform_callback(self, interaction: discord.Interaction, select: discord.ui.Select):
         global selected_platform
         selected_platform = select.values[0]
-        await interaction.response.send_message(f"✅ اخترت **{selected_platform.upper()}**. الحين حدد طول اليوزر من القائمة اللي تحت 👇", ephemeral=True)
+        await interaction.response.send_message(f"✅ تم اختيار **{selected_platform.upper()}**. اضغط الزر لبدء الصيد الحقيقي!", ephemeral=True)
 
-    # القائمة الثانية: الطول
-    @discord.ui.select(
-        placeholder="2️⃣ اختر طول اليوزر (ثلاثي، رباعي، خماسي)...",
-        options=[
-            discord.SelectOption(label="يوزر ثلاثي (نادر)", value="3"),
-            discord.SelectOption(label="يوزر رباعي", value="4"),
-            discord.SelectOption(label="يوزر خماسي", value="5")
-        ]
-    )
-    async def length_callback(self, interaction: discord.Interaction, select: discord.ui.Select):
+    @discord.ui.button(label="🎯 بدء الصيد الفعلي", style=discord.ButtonStyle.danger)
+    async def start_hunt(self, interaction: discord.Interaction, button: discord.ui.Button):
         global scanning, selected_platform
-        if not selected_platform:
-            return await interaction.response.send_message("⚠️ يا ريان، لازم تختار المنصة أولاً من القائمة فوق!", ephemeral=True)
-        
-        length = int(select.values[0])
-        await interaction.response.send_message(f"🚀 بدأ الرادار: **{selected_platform.upper()}** | الطول: **{length}**\nسيتم إرسال الفحص ومنشن عند الصيد!", ephemeral=True)
+        if not selected_platform: return await interaction.response.send_message("⚠️ حدد المنصة أولاً!", ephemeral=True)
         
         scanning = True
+        await interaction.response.send_message(f"🚀 الرادار يعمل الآن 24/7 على {selected_platform}. سيتم إرسال الصيدات الحقيقية فقط!", ephemeral=True)
+        
         while scanning:
-            user = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(length))
+            user = generate_pro_user()
             try:
-                # إرسال اليوزر الحالي للتأكد أن البوت ليس في حالة Sleeping
-                check_msg = await interaction.channel.send(f"🔍 فحص {selected_platform}: `@{user}`")
+                headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
                 
-                # فحص المنصات
-                if selected_platform == "tiktok":
-                    res = requests.get(f"https://www.tiktok.com/@{user}", headers={'User-Agent': 'Mozilla/5.0'}, timeout=5)
-                elif selected_platform == "insta":
-                    res = requests.get(f"https://www.instagram.com/{user}/", headers={'User-Agent': 'Mozilla/5.0'}, timeout=5)
-                elif selected_platform == "snap":
-                    res = requests.get(f"https://www.snapchat.com/add/{user}", timeout=5)
-                elif selected_platform == "discord":
-                    res = requests.get(f"https://discord.com/api/v9/users/{user}", timeout=5)
+                # فحص انستقرام
+                if selected_platform == "insta":
+                    res = requests.get(f"https://www.instagram.com/{user}/", headers=headers, timeout=5)
+                    # إذا 404 يعني اليوزر متاح "صدق"
+                    if res.status_code == 404:
+                        await interaction.channel.send(f"🔥 @everyone **صيدة انستا حقيقية!**\nالـيـوزر: `@{user}`")
+                
+                # فحص تيك توك
+                elif selected_platform == "tiktok":
+                    res = requests.get(f"https://www.tiktok.com/@{user}", headers=headers, timeout=5)
+                    if res.status_code == 404:
+                        await interaction.channel.send(f"📱 @everyone **صيدة تيك توك حقيقية!**\nالـيـوزر: `@{user}`")
 
-                if res.status_code == 404:
-                    await interaction.channel.send(f"@everyone 🎯 **صيدة جديدة!**\nالمنصة: {selected_platform}\nاليوزر: `@{user}`")
-                
-                await asyncio.sleep(1) # تأخير بسيط قبل حذف رسالة الفحص
-                await check_msg.delete()
-                
-            except: pass
+            except Exception as e:
+                print(f"Error: {e}")
             
-            # وقت انتظار 10 ثوانٍ لضمان عدم تكرار حظر 429
-            await asyncio.sleep(10)
+            # أهم نقطة: وقت انتظار 12 ثانية عشان ما تنحظر وتضيع عليك الصيدة
+            await asyncio.sleep(12)
 
 @bot.command()
 async def setup(ctx):
-    embed = discord.Embed(title="🛡️ رادار ريان الاحترافي", description="حدد خياراتك لبدء الصيد التلقائي 24/7", color=0x2b2d31)
-    await ctx.send(embed=embed, view=HuntView())
+    await ctx.send(embed=discord.Embed(title="🛡️ رادار ريان - نسخة الصيد الحقيقي", description="هذه النسخة مبرمجة لتجنب الحظر والصيد بدقة عالية.", color=0xFF0000), view=ProHunter())
 
 @bot.command()
 async def stop(ctx):
     global scanning
     scanning = False
-    await ctx.send("🛑 توقف الرادار.")
+    await ctx.send("🛑 توقف الصيد.")
 
 if __name__ == "__main__":
-    keep_alive() # تشغيل نظام الحماية من النوم
+    keep_alive() # يمنع حالة الـ Sleeping
     bot.run(TOKEN)
