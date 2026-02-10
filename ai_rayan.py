@@ -69,4 +69,5 @@ async def stop(ctx):
 
 token = os.getenv('DISCORD_TOKEN')
 
-bot.run(token)
+bot.run('ضع_التوكن_هنا_بين_العلامات')
+
