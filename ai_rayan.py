@@ -2,40 +2,30 @@ import discord
 from discord.ext import commands
 import yt_dlp
 import os
-import asyncio
 from flask import Flask
 from threading import Thread
 
-# --- إعداد Flask لضمان استمرار عمل البوت على Koyeb ---
+# --- تشغيل سيرفر ويب بسيط لمنع Koyeb من إغلاق البوت ---
 app = Flask('')
 
 @app.route('/')
 def home():
-    return "البوت شغال تمام!"
+    return "البوت شغال!"
 
 def run():
-    # المنفذ 8080 هو الافتراضي لـ Koyeb
     app.run(host='0.0.0.0', port=8080)
 
 def keep_alive():
     t = Thread(target=run)
     t.start()
 
-# --- إعدادات بوت الديسكورد ---
+# --- إعدادات البوت ---
 intents = discord.Intents.default()
-intents.message_content = True  # ضروري جداً عشان أمر "ش"
+intents.message_content = True
 
 bot = commands.Bot(command_prefix="", intents=intents)
 
-YDL_OPTIONS = {
-    'format': 'bestaudio/best',
-    'noplaylist': 'True',
-    'quiet': True,
-    'no_warnings': True,
-    'default_search': 'auto',
-    'source_address': '0.0.0.0'
-}
-
+YDL_OPTIONS = {'format': 'bestaudio/best', 'noplaylist': 'True', 'quiet': True}
 FFMPEG_OPTIONS = {
     'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
     'options': '-vn'
@@ -43,19 +33,15 @@ FFMPEG_OPTIONS = {
 
 @bot.event
 async def on_ready():
-    print(f'✅ سجلنا دخول باسم: {bot.user.name}')
+    print(f'✅ تم تسجيل الدخول باسم: {bot.user.name}')
 
 @bot.command(name="ش")
 async def play(ctx, *, search: str):
     if not ctx.author.voice:
-        return await ctx.send("⚠️ يا غالي ادخل روم صوتي أول!")
+        return await ctx.send("⚠️ ادخل روم صوتي أولاً!")
 
-    channel = ctx.author.voice.channel
-    
-    if ctx.voice_client is None:
-        await channel.connect()
-    else:
-        await ctx.voice_client.move_to(channel)
+    if not ctx.voice_client:
+        await ctx.author.voice.channel.connect()
 
     async with ctx.typing():
         with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
@@ -64,29 +50,21 @@ async def play(ctx, *, search: str):
                 url = info['url']
                 title = info['title']
             except Exception as e:
-                return await ctx.send(f"❌ ما قدرت ألقى الأغنية: {e}")
+                return await ctx.send(f"❌ خطأ في البحث: {e}")
 
         if ctx.voice_client.is_playing():
             ctx.voice_client.stop()
 
         source = await discord.FFmpegOpusAudio.from_probe(url, **FFMPEG_OPTIONS)
         ctx.voice_client.play(source)
-
     await ctx.send(f"🎶 جاري تشغيل: **{title}**")
 
 @bot.command(name="طلع")
 async def stop(ctx):
     if ctx.voice_client:
         await ctx.voice_client.disconnect()
-        await ctx.send("👋 نراكم على خير!")
-    else:
-        await ctx.send("أنا مو متصل بأي روم!")
 
-# --- تشغيل النظام المزدوج ---
 if __name__ == "__main__":
-    keep_alive()  # تشغيل سيرفر الويب في الخلفية
-    token = os.getenv('token')  # تأكد أن الاسم في Koyeb هو token
-    if token:
-        bot.run(token)
-    else:
-        print("❌ خطأ: لم يتم العثور على التوكن في Environment Variables")
+    keep_alive()
+    # تأكد أنك سميت المتغير في Koyeb باسم token (حروف صغيرة)
+    bot.run(os.getenv('token'))
