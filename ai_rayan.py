@@ -65,6 +65,8 @@ async def stop(ctx):
     else:
         await ctx.send("البوت مو متصل بروم!")
 
-# جلب التوكن من متغيرات البيئة (مهم جداً لـ Koyeb)
+# تأكد أن الكلمة داخل القوسين تطابق الاسم اللي حطيته في Koyeb
+
 token = os.getenv('DISCORD_TOKEN')
+
 bot.run(token)
